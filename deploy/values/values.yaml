@@ -1,0 +1,202 @@
+# Optio site values — chart + images only, configuration as code.
+#
+# Team-owned: init.sh copies this file once and never overwrites it. Replace every <FILL…> before
+# deploying (scripts/deploy.sh refuses while one is left on an uncommented line).
+# No secret values here: they live in Kubernetes Secrets made by scripts/make-k8s-objects.sh and are
+# referenced through existingSecrets. The one exception is the built-in PostgreSQL password, which the
+# chart only takes as a value: scripts/deploy.sh passes it from secrets.env with --set.
+#
+# Check the keys against the chart you carried in:  scripts/check-values.sh bundle/optio-<V>.tgz
+
+namespace: optio
+# make-k8s-objects.sh creates the namespace (the Secrets must exist before the release).
+createNamespace: false
+
+# The URL people open. OAuth callbacks are <publicUrl>/api/auth/<provider>/callback.
+publicUrl: "<FILL: https://optio.example.com>"
+
+# Only what we run here. Empty means every option, so list them.
+features:
+  runtimes: [claude-code]
+  gitPlatforms: [gitlab]
+  triggers: [manual, schedule, webhook, gitlab, jira]
+  ticketSources: [gitlab]
+  connectionProviders: [custom-http, custom-mcp]
+
+workspaces:
+  creation: admins
+
+# ── Images (mirrored by bundle/load.sh; one version V for api, web and agents) ────────────────────
+api:
+  image:
+    repository: "<FILL: registry.example.com/optio>/optio-api"
+    tag: "<FILL: V>"
+  replicas: 1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+  # Our CA for the API's own TLS calls (GitLab, Jira, sign-in). NODE_EXTRA_CA_CERTS points here,
+  # set through existingSecrets below.
+  extraVolumes:
+    - name: site-ca
+      configMap:
+        name: optio-site-ca
+  extraVolumeMounts:
+    - name: site-ca
+      mountPath: /etc/optio-site-ca
+      readOnly: true
+
+web:
+  image:
+    repository: "<FILL: registry.example.com/optio>/optio-web"
+    tag: "<FILL: V>"
+
+agent:
+  # Our own ServiceAccount, made by make-k8s-objects.sh with imagePullSecrets: the API sets no pull
+  # secret on agent pods. Not needed when the nodes authenticate to the registry themselves.
+  serviceAccount:
+    create: false
+    name: optio-agent
+  # Agent images = upstream images + our CA (images/agent-ca.Dockerfile). Pod image:
+  # <prefix><preset>:<tag>, e.g. …/optio-agent-node:V-ca1. Never re-push a tag; bump -caN.
+  image:
+    repository: "<FILL: registry.example.com/optio>/optio-agent-base"
+    prefix: "<FILL: registry.example.com/optio>/optio-agent-"
+    tag: "<FILL: V>-ca1"
+  imagePullPolicy: IfNotPresent # the one the API reads (agent.image.pullPolicy is not read)
+  envoyProxy:
+    image:
+      repository: "<FILL: registry.example.com/mirror>/envoyproxy/envoy"
+      tag: v1.39.5
+  pvc:
+    storageClass: "" # empty = the cluster default
+    size: 20Gi
+  nodeSelector: {}
+  tolerations: []
+  git:
+    botName: "Optio Agent"
+    botEmail: "<FILL: optio-agent@example.com>"
+
+imagePullSecrets:
+  - name: optio-registry # made by make-k8s-objects.sh when secrets.env has registry credentials
+
+# ── Data stores (built-in; backups on) ───────────────────────────────────────────────────────────
+postgresql:
+  enabled: true
+  image:
+    repository: "<FILL: registry.example.com/mirror>/library/postgres"
+    tag: "16" # the chart pins an upstream digest; use the tag you pushed
+  storage:
+    storageClass: ""
+    size: 20Gi
+
+redis:
+  enabled: true
+  image:
+    repository: "<FILL: registry.example.com/mirror>/library/redis"
+    tag: "7-alpine"
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 2Gi # ≥ 2 × redis.resources.limits.memory
+
+backup:
+  enabled: true
+  schedule: "15 2 * * *"
+  timeZone: "Asia/Jerusalem"
+  target: pvc
+  keep: 7
+  pvc:
+    size: 20Gi
+    storageClass: ""
+
+# ── Secrets and env the chart has no value for ───────────────────────────────────────────────────
+# One line per variable, flow style ({ name, key }): deploy.sh checks each key exists before helm runs.
+# optio-site-secrets comes from secrets.env, optio-site-env from site.env (make-k8s-objects.sh).
+# Remove the lines you don't use: a missing key keeps the API pod from starting.
+existingSecrets:
+  OPTIO_ENCRYPTION_KEY: { name: optio-site-secrets, key: OPTIO_ENCRYPTION_KEY }
+  OPTIO_SETUP_TOKEN: { name: optio-site-secrets, key: OPTIO_SETUP_TOKEN }
+  GITLAB_TOKEN: { name: optio-site-secrets, key: GITLAB_TOKEN }
+  GITLAB_WEBHOOK_SECRET: { name: optio-site-secrets, key: GITLAB_WEBHOOK_SECRET }
+  JIRA_WEBHOOK_SECRET: { name: optio-site-secrets, key: JIRA_WEBHOOK_SECRET }
+  GITLAB_OAUTH_CLIENT_SECRET: { name: optio-site-secrets, key: GITLAB_OAUTH_CLIENT_SECRET }
+  GITLAB_HOSTS: { name: optio-site-env, key: GITLAB_HOSTS }
+  GITLAB_OAUTH_BASE_URL: { name: optio-site-env, key: GITLAB_OAUTH_BASE_URL }
+  NODE_EXTRA_CA_CERTS: { name: optio-site-env, key: NODE_EXTRA_CA_CERTS }
+
+# ── Sign-in: pick ONE ────────────────────────────────────────────────────────────────────────────
+auth:
+  deploymentAdmins: ["<FILL: admin@example.com>"]
+  # A) Our GitLab as the identity provider. Register an application in GitLab (scope: read_user)
+  #    with redirect URI <publicUrl>/api/auth/gitlab/callback.
+  gitlab:
+    clientId: "<FILL: GitLab application id>"
+    clientSecret: "" # from existingSecrets GITLAB_OAUTH_CLIENT_SECRET
+  # B) An OIDC provider (Keycloak, ADFS, …): set issuerUrl, map OIDC_CLIENT_SECRET in existingSecrets,
+  #    remove the gitlab block and its two existingSecrets lines.
+  # oidc:
+  #   issuerUrl: "<FILL: https://sso.example.com/realms/main>"
+  #   clientId: "<FILL>"
+  #   displayName: "SSO"
+  #   trustEmail: true
+  # C) LDAP / Active Directory (charts newer than 0.23.0): url, userBaseDn, bindDn; bind password
+  #    through existingSecrets LDAP_BIND_PASSWORD.
+  # ldap:
+  #   url: "<FILL: ldaps://ad.example.com:636>"
+  #   userBaseDn: "<FILL: OU=People,DC=example,DC=com>"
+  #   bindDn: "<FILL: CN=optio,OU=Service,DC=example,DC=com>"
+
+# ── Network ──────────────────────────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  # The chart adds an nginx server-snippet that hides /api/internal/. ingress-nginx ≥ 1.9 rejects
+  # snippets unless the controller allows them (see README, phase 4).
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+  hosts:
+    - host: "<FILL: optio.example.com>"
+      paths:
+        - { path: /, pathType: Prefix, service: web }
+        - { path: /api, pathType: Prefix, service: api }
+        - { path: /ws, pathType: Prefix, service: api }
+  tls:
+    - secretName: optio-tls # a kubernetes.io/tls Secret from our CA, made outside this repo
+      hosts: ["<FILL: optio.example.com>"]
+
+# Hosts the API itself may call (SSRF guard): GitLab, Jira, the identity provider.
+outbound:
+  allowedHosts: ["<FILL: gitlab.example.com>", "<FILL: jira.example.com>"]
+
+# Default-deny for agent pods: DNS, the Optio API, public 80/443 only. Private ranges are always
+# excluded, so every internal host agents need is listed here (GitLab, Jira, LLM gateway, package
+# mirrors). Ports other than 80/443 (e.g. GitLab on 8443) must be listed too.
+networkPolicy:
+  enabled: true
+  extraEgress:
+    - to:
+        - ipBlock: { cidr: "<FILL: 10.0.0.10/32>" } # GitLab
+        - ipBlock: { cidr: "<FILL: 10.0.0.20/32>" } # Jira
+        - ipBlock: { cidr: "<FILL: 10.0.0.30/32>" } # LLM gateway
+        - ipBlock: { cidr: "<FILL: 10.0.0.40/32>" } # package mirror (npm / PyPI)
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: "<FILL: 8443 or remove>" }
+
+# Set false in a namespace-only (Rancher project) install without cluster permissions.
+rbac:
+  clusterRole:
+    create: true
+
+# ── Configuration as code ────────────────────────────────────────────────────────────────────────
+# The config/ directory of this repo, applied as the ConfigMap optio-config by
+# scripts/apply-config.sh. The API re-reads it every intervalMs; no pod restart.
+configAsCode:
+  enabled: true
+  configMap: optio-config
+  workspace: "" # empty = the organization's workspace (made at the first sign-in)
+  prune: true
+  intervalMs: 60000

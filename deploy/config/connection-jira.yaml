@@ -1,0 +1,20 @@
+# Jira Data Center for agents, with no Optio code change: the built-in "HTTP API" provider runs the
+# REST bridge already baked into the agent images. The token is the stored secret JIRA_PAT
+# (bootstrap-db.sh); a literal token here is refused. Work picks it with
+# environment.connections.add: [Jira].
+apiVersion: optio/v1
+kind: Connection
+metadata:
+  name: Jira
+  description: Jira Data Center REST API v2
+spec:
+  provider: custom-http
+  config:
+    baseUrl: "<FILL: https://jira.example.com>/rest/api/2"
+    authType: bearer
+    authHeader: Authorization
+    AUTH_TOKEN: "${{JIRA_PAT}}"
+    description: >-
+      Jira Data Center REST API v2. Read an issue: GET issue/{key}. Search: GET search?jql=...
+      Comment: POST issue/{key}/comment with {"body": "..."} in plain text or wiki markup (not ADF).
+      Transitions: GET then POST issue/{key}/transitions.

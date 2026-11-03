@@ -25,7 +25,9 @@ contains() { grep -qF -- "$2" "$1"; }
 lacks() { ! grep -qF -- "$2" "$1"; }
 
 echo "== syntax"
-for s in "$KIT"/*.sh "$KIT"/tests/*.sh "$KIT"/core/scripts/*.sh "$KIT"/airgap/scripts/airgap/*.sh $(ls "$KIT"/tools/*.sh 2>/dev/null); do
+for s in "$KIT"/*.sh "$KIT"/tests/*.sh "$KIT"/core/scripts/*.sh "$KIT"/airgap/scripts/airgap/*.sh \
+  "$KIT"/deploy/*.sh "$KIT"/deploy/scripts/*.sh "$KIT"/deploy/bundle/*.sh "$KIT"/deploy/images/*.sh \
+  $(ls "$KIT"/tools/*.sh 2>/dev/null); do
   t "bash -n $(basename "$s")" bash -n "$s"
 done
 
@@ -116,6 +118,21 @@ t "fork MR includes skills" bash -c "git -C '$T/c6' show --stat HEAD | grep -q '
 clone c7
 t "git am applies the fork patch" git -C "$T/c7" am -q "$T"/p-all/*.patch
 t "check passes after fork git am" bash -c "cd '$T/c7' && bash scripts/check-agent-guides.sh"
+
+echo "== deploy starter (chart + images only)"
+t "deploy values: every key known to this chart" bash "$KIT/deploy/scripts/check-values.sh" "$SRC/helm/optio" "$KIT/deploy/values/values.yaml"
+t "check-values catches an unknown key" bash -c "printf 'api:\\n  imagee: x\\n' > '$T/bad.yaml'; ! bash '$KIT/deploy/scripts/check-values.sh' '$SRC/helm/optio' '$T/bad.yaml'"
+t "deploy holds no real host names or private words" bash -c \
+  "! grep -rniE '\\bd[o]k\\b|deep ?s[e]ek|[a-z0-9-]+\\.(corp|lan|intra)\\b' '$KIT/deploy'"
+t "config/ is flat" test -z "$(find "$KIT/deploy/config" -mindepth 1 -type d)"
+t "every *File a manifest names exists" bash -c "cd '$KIT/deploy/config' && for r in \$(sed -nE 's/^[[:space:]]+(promptFile|templateFile|systemPromptFile|agentsMdFile):[[:space:]]*\"?([^\"#[:space:]]+).*/\\2/p' *.yaml); do test -f \"\$r\" || { echo \"missing \$r\"; exit 1; }; done"
+t "every manifest document has apiVersion optio/v1" bash -c "cd '$KIT/deploy/config' && for f in *.yaml; do test \"\$(grep -c '^kind:' \$f)\" = \"\$(grep -c '^apiVersion: optio/v1' \$f)\" || { echo \$f; exit 1; }; done"
+t "init.sh copies the starter" "$KIT/deploy/init.sh" "$T/dep"
+t "init.sh leaves out itself" test ! -e "$T/dep/init.sh"
+echo "# team edit" >> "$T/dep/values/values.yaml"
+"$KIT/deploy/init.sh" "$T/dep" > "$T/dep.log"
+t "init.sh re-run: nothing to do" contains "$T/dep.log" "0 added, 0 updated"
+t "init.sh keeps team-owned values" contains "$T/dep/values/values.yaml" "# team edit"
 
 echo "== harvest"
 cp -r "$KIT" "$T/kit"

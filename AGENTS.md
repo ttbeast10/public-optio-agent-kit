@@ -15,4 +15,9 @@ Optio code. Read `README.md` for the layers and the three publish modes.
   checkout's `docs/airgap/site-facts.md`, which the kit only creates when missing.
 - Scripts are bash + git + coreutils only (no node, no network). `bash -n` them after editing.
 - Markdown is Prettier-formatted (print width 100), because Optio's pre-commit hook checks it.
+- `deploy/` is a starter for a separate deploy repo (chart + images, no Optio source), copied by
+  `deploy/init.sh`, never installed into a checkout. Its values and config use only `example.com`
+  placeholders and `<FILL…>` markers. Its scripts may use kubectl, helm, curl and skopeo (each says
+  which); every values key must exist in the chart at `OPTIO_BASE` (`deploy/scripts/check-values.sh`,
+  run by the tests).
 - After a change: bump `VERSION`, add a `CHANGELOG.md` entry, commit with a conventional message.

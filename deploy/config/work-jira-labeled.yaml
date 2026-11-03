@@ -1,0 +1,28 @@
+# Off until tested (README, phase 6): Jira Data Center → Optio's Jira event trigger. Needs a Jira
+# webhook to <publicUrl>/api/webhooks/jira signed with JIRA_WEBHOOK_SECRET; whether your Jira version
+# signs webhooks and sends the payload Optio expects is what the test shows. If it doesn't, use a
+# schedule instead and let the agent search Jira through the Jira connection.
+apiVersion: optio/v1
+kind: Work
+metadata:
+  name: jira-issue-to-mr
+  description: Implements a Jira issue labeled "optio" and comments back on it
+spec:
+  when:
+    jira:
+      events: [labeled]
+      labels: [optio]
+      projects: ["<FILL: JIRA project key>"]
+  where:
+    repo: "<FILL: https://gitlab.example.com/group/app>"
+  who:
+    runtime: claude-code
+    model: "<FILL: the gateway's model alias>"
+  what:
+    promptFile: work-jira-labeled.md
+    runTitle: Jira issue
+  then: until-merged
+  secrets: [ANTHROPIC_BASE_URL, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC]
+  environment:
+    connections: { add: [Jira] }
+  enabled: false

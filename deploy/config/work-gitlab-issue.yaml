@@ -1,0 +1,25 @@
+# A GitLab issue gets the label "optio" → an agent implements it and opens a merge request, then keeps
+# the task open until the MR is merged. Needs the GitLab project webhook (README, phase 6) with the
+# secret GITLAB_WEBHOOK_SECRET, URL <publicUrl>/api/webhooks/gitlab, events: issues.
+apiVersion: optio/v1
+kind: Work
+metadata:
+  name: gitlab-issue-to-mr
+  description: Implements a GitLab issue labeled "optio" and opens a merge request
+spec:
+  when:
+    gitlab:
+      events: [labeled]
+      labels: [optio]
+      projects: ["<FILL: group/app>"]
+  where:
+    repo: "<FILL: https://gitlab.example.com/group/app>"
+  who:
+    runtime: claude-code
+    model: "<FILL: the gateway's model alias>"
+  what:
+    promptFile: work-gitlab-issue.md
+    runTitle: GitLab issue
+  then: until-merged
+  retries: 1
+  secrets: [ANTHROPIC_BASE_URL, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC]

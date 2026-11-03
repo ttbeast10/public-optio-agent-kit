@@ -1,0 +1,20 @@
+# Every weeknight: update dependencies within their allowed ranges and open a merge request.
+apiVersion: optio/v1
+kind: Work
+metadata:
+  name: nightly-dependency-update
+  description: Updates dependencies within their ranges every weeknight and opens a merge request
+spec:
+  when:
+    schedule: "0 1 * * 0-4" # cron, UTC
+  where:
+    repo: "<FILL: https://gitlab.example.com/group/app>"
+    branch: main
+  who:
+    runtime: claude-code
+    model: "<FILL: the gateway's model alias>"
+  what:
+    promptFile: work-nightly-deps.md
+    runTitle: Dependency update
+  then: until-merged
+  secrets: [ANTHROPIC_BASE_URL, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC]

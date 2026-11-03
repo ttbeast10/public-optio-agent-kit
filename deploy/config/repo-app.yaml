@@ -1,0 +1,23 @@
+# A repo Optio may work in. Only the settings named here are managed; the rest keep their values.
+# One file per repo: repo-<name>.yaml. All Repo settings: docs/config-as-code.md in Optio, or
+# GET <OPTIO_SERVER>/api/config/schema.json.
+apiVersion: optio/v1
+kind: Repo
+metadata:
+  name: app
+  description: "<FILL: what this repo is>"
+spec:
+  url: "<FILL: https://gitlab.example.com/group/app>"
+  defaultBranch: main
+  imagePreset: node # one of AGENT_PRESETS in site/deploy.env
+  defaultAgentType: claude-code
+  claudeModel: "<FILL: the gateway's model alias>"
+  # Runs in the repo pod after the clone. Package mirrors come from the pod env
+  # (NPM_CONFIG_REGISTRY / PIP_INDEX_URL, stored by bootstrap-db.sh).
+  setupCommands: |
+    npm ci
+  maxConcurrentTasks: 2
+  maxAgentsPerPod: 2
+  autoMerge: false
+  memoryRequest: 1Gi
+  memoryLimit: 4Gi

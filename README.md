@@ -43,6 +43,24 @@ wrong things. The built-in Explore/Plan subagents of Claude Code don't read `CLA
 - `scripts/airgap/impact.sh` — changed files → which images to rebuild, Helm keys, tests.
 - `MANIFEST.md` — what belongs where, change → rebuild matrix.
 
+**Deploy starter — chart and images only** (`deploy/`, not installed into a checkout)
+
+For running Optio with **no source code at all**: the released Helm chart, the released images, and
+Optio's work defined as code. `deploy/init.sh <folder>` copies it into your own deploy repo.
+
+- `README.md` — the plan, phases 0–7: decide, bundle (outside), load, cluster prerequisites, ingress,
+  install, bootstrap + configuration as code, operate; every chart gap and the configuration that
+  covers it (no source change needed); Jira Data Center options.
+- `CLAUDE.md` + skills `optio-deploy` (install, upgrade, roll back, symptom table) and
+  `optio-config-as-code` (write, check, publish manifests) for the coding agent running it.
+- `values/values.yaml` (annotated site values), `site/*.example` (env and secrets templates),
+  `config/` (example manifests: a repo, GitLab issue → merge request, nightly dependency update, a Jira
+  connection through the REST bridge, a Jira-triggered task left off until tested).
+- Scripts (bash + coreutils + kubectl / helm / curl / skopeo): `bundle/fetch.sh` (outside) and
+  `bundle/load.sh`, `images/build-agent-ca.sh` (upstream agent image + your CA),
+  `scripts/make-k8s-objects.sh`, `deploy.sh` (pre-upgrade dump first), `apply-config.sh`,
+  `bootstrap-db.sh`, `verify.sh`, `check-values.sh` (keys the chart doesn't know).
+
 ## Install (inside the air gap)
 
 ```bash
@@ -91,6 +109,7 @@ produces patches that `git am` cleanly, `harvest.sh` round-trips.
 | Path                                     | What                                                         |
 | ---------------------------------------- | ------------------------------------------------------------ |
 | `core/`, `airgap/`                       | the two layers, laid out exactly like the Optio repo         |
+| `deploy/`                                | starter for a chart + images deploy repo (`deploy/init.sh`)  |
 | `snippets/agents-md-section.md`          | the "Start here" section for the root `AGENTS.md`            |
 | `install.sh`, `harvest.sh`, `make-pr.sh` | install, copy edits back, publish                            |
 | `tests/run-tests.sh`                     | self-test against an Optio checkout                          |
