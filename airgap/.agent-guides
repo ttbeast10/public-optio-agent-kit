@@ -1,0 +1,3 @@
+# Extra files and folders checked by scripts/check-agent-guides.sh (one per line).
+MANIFEST.md
+docs/airgap

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./apps/android/**)",
+      "Read(./apps/ios/**)",
+      "Read(./apps/site/**)",
+      "Read(./design/**)",
+      "Read(./docs/design/**)",
+      "Read(./docs/audits/**)",
+      "Read(./docs/ios-push.md)",
+      "Read(./docs/android-push.md)",
+      "Read(./pnpm-lock.yaml)",
+      "Read(**/node_modules/**)",
+      "Read(**/dist/**)",
+      "Read(**/.next/**)",
+      "Read(**/.turbo/**)",
+      "WebSearch",
+      "WebFetch"
+    ]
+  }
+}

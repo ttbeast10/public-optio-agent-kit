@@ -1,0 +1,9 @@
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<LiteLLM model alias for your small fast model>",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "<LiteLLM model alias for your small fast model>",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "<LiteLLM model alias for the contract Claude model>",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "<max context your vLLM/LiteLLM accepts for that model, e.g. 131072>"
+  }
+}
